@@ -67,6 +67,8 @@ mb_exception_t mbs_fn_rw_multi_holding_reg(mb_base_t *inst, uint8_t *frame_ptr,u
 mb_exception_t mbm_fn_rw_multi_holding_regs(mb_base_t *inst, uint8_t *frame_ptr, uint16_t *len_buf);
 #endif
 
+mb_exception_t mbm_fn_write_gen_ref(mb_base_t *inst, uint8_t *frame_ptr,uint16_t *len_buf);
+
 #ifdef __cplusplus
 }
 #endif

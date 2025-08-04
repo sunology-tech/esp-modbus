@@ -34,6 +34,7 @@ typedef enum _mb_commands_enum
     MB_FUNC_DIAG_GET_COM_EVENT_CNT      = ( 11 ),
     MB_FUNC_DIAG_GET_COM_EVENT_LOG      = ( 12 ),
     MB_FUNC_OTHER_REPORT_SLAVEID        = ( 17 ),
+    MB_FUNC_WRITE_GENERAL_REFERENCE     = ( 21 ),
     MB_FUNC_ERROR                       = ( 0x80 )
 } mb_commands_t;
 
