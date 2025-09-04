@@ -23,8 +23,6 @@ mb_err_enum_t mbm_rq_read_coils(mb_base_t *inst, uint8_t snd_addr, uint16_t coil
 mb_err_enum_t mbm_rq_write_coil(mb_base_t *inst, uint8_t snd_addr, uint16_t coil_addr, uint16_t coil_data, uint32_t tout);
 mb_err_enum_t mbm_rq_write_multi_coils(mb_base_t *inst, uint8_t snd_addr, uint16_t coil_addr, uint16_t coil_num, uint8_t *data_ptr, uint32_t tout);
 mb_err_enum_t mbm_rq_custom(mb_base_t *inst, uint8_t uid, uint8_t fc, uint8_t *buf, uint16_t buf_size, uint32_t tout);
-mb_err_enum_t mbm_rq_write_gen_ref(mb_base_t *inst, uint8_t uid, uint8_t fc, uint8_t *buf, uint16_t extmemfn, uint16_t startreg, uint16_t regqty, uint16_t buf_size, uint32_t tout);
-
 
 #if MB_FUNC_OTHER_REP_SLAVEID_ENABLED
 mb_err_enum_t mbm_rq_report_slave_id(mb_base_t *inst, uint8_t slave_addr, uint32_t timeout);
@@ -45,6 +43,10 @@ mb_exception_t mbm_fn_report_slave_id(mb_base_t *inst, uint8_t * pframe, uint16_
  *   - mb_err_enum_t::MB_EINVAL if value data can not be transferred
  */
 mb_err_enum_t mbc_reg_common_cb(mb_base_t *inst, uint8_t *pdata, uint16_t address, uint16_t bytes);
+#endif
+
+#if MB_FUNC_READWRITE_GENERAL_REF_ENABLED
+mb_err_enum_t mbm_rq_write_gen_ref(mb_base_t *inst, uint8_t uid, uint8_t fc, uint8_t *buf, uint16_t extmemfn, uint16_t startreg, uint16_t regqty, uint16_t buf_size, uint32_t tout);
 #endif
 
 // The function to register custom function handler for master

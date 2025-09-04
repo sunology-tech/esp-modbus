@@ -29,14 +29,11 @@
  * File: $Id: mbfuncother.c, v 1.8 2006/12/07 22:10:34 wolti Exp $
  */
 #include <sys/param.h>
-#include "esp_log.h"                // for log_write
 
 #include "mb_common.h"
 #include "mb_proto.h"
 #include "mb_slave.h"
 #include "mb_master.h"
-
-static const char* TAG = "mbfuncother";
 
 #define MB_PDU_BYTECNT_OFF              (MB_PDU_DATA_OFF + 0)
 #define MB_PDU_FUNC_DATA_OFF            (MB_PDU_DATA_OFF + 1)
@@ -199,23 +196,16 @@ mb_err_enum_t mbs_get_slave_id(mb_base_t *inst, uint8_t *pdata, uint8_t *pdata_l
 #endif
 
 
-//                                 (mb_base_t *inst, uint8_t *pframe, uint16_t *plen)
+#if MB_FUNC_READWRITE_GENERAL_REF_ENABLED
+
 mb_exception_t mbm_fn_write_gen_ref(mb_base_t *inst, uint8_t *frame_ptr, uint16_t *len_buf)
 {
     mb_err_enum_t reg_status = MB_EILLFUNC;
     mb_exception_t status = MB_EX_NONE;
-
-    ESP_LOGW(TAG, "mbm_fn_write_gen_ref()");
     
     if (!inst || !frame_ptr || !len_buf) {
         status = MB_EX_SLAVE_DEVICE_FAILURE;
     }
-
-    /*
-    if (inst->rw_cbs.reg_coils_cb) {
-        reg_status = inst->rw_cbs.reg_coils_cb(inst, &buf[0], reg_addr, 1, MB_REG_WRITE);
-    }
-    */
 
     return status;
 }
@@ -261,3 +251,5 @@ mb_err_enum_t mbm_rq_write_gen_ref(mb_base_t *inst, uint8_t uid, uint8_t fc, uin
     (void)mb_port_event_post(inst->port_obj, EVENT(EV_FRAME_TRANSMIT | EV_TRANS_START));
     return mb_port_event_wait_req_finish(inst->port_obj);
 }
+
+#endif

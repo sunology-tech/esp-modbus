@@ -183,8 +183,8 @@ typedef struct {
     uint16_t reg_start;             /*!< Modbus start register */
     uint16_t reg_size;              /*!< Modbus number of registers */
     uint16_t extmem_num;            /*!< Modbus Extended Memory file number */
-    uint16_t start_reg;             /*!< Modbus Starting register (Write General Reference) */
-    uint16_t quant_reg;             /*!< Modbus quantity of registers to write (Write General Reference)*/
+    uint16_t gr_reg_start;          /*!< Modbus Starting register (Write General Reference) */
+    uint16_t gr_reg_quant;          /*!< Modbus quantity of registers to write (Write General Reference)*/
 } mb_param_request_t;
 
 /**
