@@ -45,6 +45,10 @@ mb_exception_t mbm_fn_report_slave_id(mb_base_t *inst, uint8_t * frame, uint16_t
 mb_err_enum_t mbc_reg_common_cb(mb_base_t *inst, uint8_t *data_ptr, uint16_t address, uint16_t bytes);
 #endif
 
+#if MB_FUNC_READWRITE_GENERAL_REF_ENABLED
+mb_err_enum_t mbm_rq_write_gen_ref(mb_base_t *inst, uint8_t uid, uint8_t fc, uint8_t *buf, uint16_t extmemfn, uint16_t startreg, uint16_t regqty, uint16_t buf_size, uint32_t tout);
+#endif
+
 // The function to register custom function handler for master
 mb_err_enum_t mbm_set_handler(mb_base_t *inst, uint8_t func_code, mb_fn_handler_fp handler);
 

@@ -172,6 +172,14 @@ menu "Modbus configuration"
                 Modbus slave ID buffer size used to store vendor specific ID information
                 for the <Report Slave ID> command.
 
+    config FMB_READWRITE_GENERAL_REFERENCE_ENABLED
+        bool "Modbus General Reference Frame support"
+        default n
+        help
+                Modbus general reference frames read/write enable.
+                When enabled the Modbus General Read/Write comand 0x15 is accessible. 
+                Used by some Modbus devices to allow file transfert for Firmware upgrade
+
     config FMB_CONTROLLER_NOTIFY_TIMEOUT
         int "Modbus controller notification timeout (ms)"
         range 0 200

@@ -167,6 +167,11 @@ static mb_err_enum_t mbm_register_default_handlers(mb_base_t *inst)
         err = mbm_set_handler(inst, MB_FUNC_READ_DISCRETE_INPUTS, (void *)mbm_fn_read_discrete_inputs);
         MB_RETURN_ON_FALSE((err == MB_ENOERR), err, TAG, "handler registration error = (0x%x).", (int)err);
 #endif
+#if MB_FUNC_READWRITE_GENERAL_REF_ENABLED
+        err = mbm_set_handler(inst, MB_FUNC_WRITE_GENERAL_REFERENCE, (void *)mbm_fn_write_gen_ref);
+        MB_RETURN_ON_FALSE((err == MB_ENOERR), err, TAG, "handler registration error = (0x%x).", (int)err);
+#endif
+
     return MB_ENOERR;
 }
 

@@ -29,6 +29,7 @@
  * File: $Id: mbfuncother.c, v 1.8 2006/12/07 22:10:34 wolti Exp $
  */
 #include <sys/param.h>
+
 #include "mb_common.h"
 #include "mb_proto.h"
 #include "mb_slave.h"
@@ -190,6 +191,65 @@ mb_err_enum_t mbs_get_slave_id(mb_base_t *inst, uint8_t *data_ptr, uint8_t *data
         status = MB_EINVAL;
     }
     return status;
+}
+
+#endif
+
+
+#if MB_FUNC_READWRITE_GENERAL_REF_ENABLED
+
+mb_exception_t mbm_fn_write_gen_ref(mb_base_t *inst, uint8_t *frame_ptr, uint16_t *len_buf)
+{
+    mb_err_enum_t reg_status = MB_EILLFUNC;
+    mb_exception_t status = MB_EX_NONE;
+    
+    if (!inst || !frame_ptr || !len_buf) {
+        status = MB_EX_SLAVE_DEVICE_FAILURE;
+    }
+
+    return status;
+}
+
+mb_err_enum_t mbm_rq_write_gen_ref(mb_base_t *inst, uint8_t uid, uint8_t fc, uint8_t *buf, uint16_t extmemfn, uint16_t startreg, uint16_t regqty, uint16_t buf_size, uint32_t tout)
+{
+    uint8_t *frame_ptr;
+
+    if (!mb_port_event_res_take(inst->port_obj, tout))
+    {
+        return MB_EBUSY;
+    }
+
+    inst->get_send_buf(inst, &frame_ptr);
+    inst->set_dest_addr(inst, uid);
+
+    //Function code
+    frame_ptr[0] = fc; //write general reference
+
+    //Length
+    frame_ptr[1] = buf_size + 7; //Overhead
+
+    //06
+    frame_ptr[2] = 0x06; //Always 0x06 for Write General Reference
+
+    //Extended Memory file number
+    frame_ptr[3] = ((uint8_t)((extmemfn) >> 8));
+    frame_ptr[4] = ((uint8_t)((extmemfn) & 0x00FFU ));
+
+    //Starting register address
+    frame_ptr[5] = ((uint8_t)((startreg) >> 8));
+    frame_ptr[6] = ((uint8_t)((startreg) & 0x00FFU ));
+
+    //Quantity of registers to be written
+    frame_ptr[7] = ((uint8_t)((regqty) >> 8));
+    frame_ptr[8] = ((uint8_t)((regqty) & 0x00FFU ));
+
+    //Add in the payload
+    memcpy(&frame_ptr[9], buf, buf_size);
+
+    inst->set_send_len(inst, 137);
+
+    (void)mb_port_event_post(inst->port_obj, EVENT(EV_FRAME_TRANSMIT | EV_TRANS_START));
+    return mb_port_event_wait_req_finish(inst->port_obj);
 }
 
 #endif

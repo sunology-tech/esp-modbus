@@ -168,6 +168,11 @@ static esp_err_t mbc_serial_master_send_request(void *ctx, mb_param_request_t *r
         uint8_t mb_command = request->command;
         uint16_t mb_offset = request->reg_start;
         uint16_t mb_size = request->reg_size;
+#if MB_FUNC_READWRITE_GENERAL_REF_ENABLED
+        uint16_t mb_extmem_num = request->extmem_num;
+	    uint16_t mb_start_reg = request->gr_reg_start;
+	    uint16_t mb_quant_reg = request->gr_reg_quant;
+#endif
 
         // Set the buffer for callback function processing of received data
         mbm_opts->reg_buffer_ptr = (uint8_t *)data_ptr;
@@ -245,6 +250,11 @@ static esp_err_t mbc_serial_master_send_request(void *ctx, mb_param_request_t *r
                                            mb_size, pdMS_TO_TICKS(MB_MAX_RESP_DELAY_MS));
             break;
 #endif
+#if MB_FUNC_READWRITE_GENERAL_REF_ENABLED
+        case MB_FUNC_WRITE_GENERAL_REFERENCE:
+            mb_error = mbm_rq_write_gen_ref(mbm_controller_iface->mb_base, (uint8_t)mb_slave_addr, mb_command, (uint8_t *)data_ptr, mb_extmem_num, mb_start_reg, mb_quant_reg, mb_size, pdMS_TO_TICKS(MB_MAX_RESP_DELAY_MS));
+            break;
+#endif 
         default:
             mb_fn_handler_fp handler = NULL;
             // check registered function handler

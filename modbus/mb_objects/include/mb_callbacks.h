@@ -17,12 +17,14 @@ typedef mb_err_enum_t (*reg_input_cb_fp)(mb_base_t *inst, uint8_t *reg_buff, uin
 typedef mb_err_enum_t (*reg_holding_cb_fp)(mb_base_t *inst, uint8_t *reg_buff, uint16_t reg_addr, uint16_t reg_num, mb_reg_mode_enum_t mode);
 typedef mb_err_enum_t (*reg_coils_cb_fp)(mb_base_t *inst, uint8_t *reg_buff, uint16_t reg_addr, uint16_t coil_num, mb_reg_mode_enum_t mode);
 typedef mb_err_enum_t (*reg_discrete_cb_fp)(mb_base_t *inst, uint8_t *reg_buff, uint16_t reg_addr, uint16_t disc_num);
+typedef mb_err_enum_t (*reg_write_genref_fp)(mb_base_t *inst, uint8_t *reg_buff, uint16_t reg_addr, uint16_t disc_num);
 
 typedef struct mb_rw_callbacks_s {
     reg_input_cb_fp reg_input_cb;
     reg_holding_cb_fp reg_holding_cb;
     reg_coils_cb_fp reg_coils_cb;
     reg_discrete_cb_fp reg_discrete_cb;
+    reg_write_genref_fp reg_write_genref_fp;
 } mb_rw_callbacks_t;
 
 #ifdef __cplusplus

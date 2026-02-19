@@ -130,6 +130,9 @@ extern "C" {
 /*! \brief If the <em>Report Slave ID</em> function should be enabled. */
 #define MB_FUNC_OTHER_REP_SLAVEID_ENABLED       (CONFIG_FMB_CONTROLLER_SLAVE_ID_SUPPORT)
 
+/*! \brief If the <em>Read/Write General Reference registers</em> function should be enabled. */
+#define MB_FUNC_READWRITE_GENERAL_REF_ENABLED   (CONFIG_FMB_READWRITE_GENERAL_REFERENCE_ENABLED)
+
 /*! \brief If the <em>Read Input Registers</em> function should be enabled. */
 #define MB_FUNC_READ_INPUT_ENABLED              (1)
 
