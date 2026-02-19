@@ -24,7 +24,7 @@
 #define MB_BO64_2 2
 #define MB_BO64_3 3
 #define MB_BO64_4 4
-#define MB_BO64_5 5 
+#define MB_BO64_5 5
 #define MB_BO64_6 6
 #define MB_BO64_7 7
 
@@ -40,7 +40,7 @@ typedef uint8_t val_32_arr[4];
 typedef uint8_t val_64_arr[8];
 
 /**
- * @brief Get int8_t (low byte) value represenatation from register
+ * @brief Get int8_t (low byte) value representation from register
  *
  * @return
  *     - int8_t value of converted from register value
@@ -72,7 +72,7 @@ int8_t mb_get_int8_b(val_16_arr *pi16);
 uint16_t mb_set_int8_b(val_16_arr *pi16, int8_t i8);
 
 /**
- * @brief Get uint8_t (low byte) value represenatation from register poined by pu16
+ * @brief Get uint8_t (low byte) value representation from register poined by pu16
  *
  * @return
  *     - uint8_t the value of converted from register value

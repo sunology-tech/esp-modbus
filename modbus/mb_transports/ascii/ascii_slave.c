@@ -12,8 +12,7 @@
 
 static const char *TAG = "mb_transp.ascii_slave";
 
-typedef struct
-{
+typedef struct {
     mb_trans_base_t base;
     mb_port_base_t *port_obj;
 
@@ -149,7 +148,7 @@ static mb_err_enum_t mbs_ascii_transp_receive(mb_trans_base_t *inst, uint8_t *re
 
     /* Check length and CRC checksum */
     if (ret >= MB_ASCII_SER_PDU_SIZE_MIN) {
-        /* Save the address field. All frames are passed to the upper layed
+        /* Save the address field. All frames are passed to the upper layer
          * and the decision if a frame is used is done there.
          */
         *recv_addr = buf[MB_SER_PDU_ADDR_OFF];
@@ -217,7 +216,7 @@ static bool mbs_ascii_transp_snd_fsm(mb_trans_base_t *inst)
 static bool mbs_ascii_transp_timer_expired(void *inst)
 {
     mbs_ascii_trasp_t *transp = __containerof(inst, mbs_ascii_trasp_t, base);
-    
+
     mb_port_timer_disable(transp->base.port_obj);
     return false;
 }
@@ -225,7 +224,7 @@ static bool mbs_ascii_transp_timer_expired(void *inst)
 void mbs_ascii_transp_get_rcv_buf(mb_trans_base_t *inst, uint8_t **frame_buf)
 {
     mbs_ascii_trasp_t *transp = __containerof(inst, mbs_ascii_trasp_t, base);
-    
+
     assert(transp->rcv_buf);
 
     CRITICAL_SECTION(inst->lock) {

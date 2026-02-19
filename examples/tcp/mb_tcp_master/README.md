@@ -80,11 +80,12 @@ There are three ways to configure how the master example will obtain slave IP ad
 * Configure slave addresses manually as below:
 ```
 char* slave_ip_address_table[MB_DEVICE_COUNT] = {
-    "192.168.1.21",     // Address corresponds to MB_DEVICE_ADDR1 and set to predefined value by user
-    "192.168.1.22",     // Address corresponds to MB_DEVICE_ADDR2 of slave device in the Modbus data dictionary
-    NULL                // Marker of end of list
+    "01;192.168.1.21",      // Address corresponds to UID (slave address) = MB_DEVICE_ADDR1 and set to predefined value by user
+    "02;192.168.1.22",      // Address corresponds to MB_DEVICE_ADDR2 of slave device in the Modbus data dictionary
+    NULL                    // End of list marker (Must be provided!)
     };
 ```
+In the above notation the port option will be treated by default = `CONFIG_FMB_TCP_PORT_DEFAULT` kconfig value. The port can be specified explicitly for each slave as "01;192.168.1.21;1502".
 
 ### Setup external Modbus slave devices or emulator
 Option 1:
@@ -115,7 +116,7 @@ I (5664) example_connect: - IPv6 address: fe80:0000:0000:0000:bedd:c2ff:fed1:b21
 I (5674) uart: ESP_INTR_FLAG_IRAM flag not set while CONFIG_UART_ISR_IN_IRAM is enabled, flag updated
 I (5684) MASTER_TEST: Leave IP(0) = [192.168.1.21] set by user.
 I (5694) MASTER_TEST: IP(1) is not set in the table.
-I (5694) MASTER_TEST: Configured 1 IP addresse(s).
+I (5694) MASTER_TEST: Configured 1 IP address.
 I (5704) MASTER_TEST: Modbus master stack initialized...
 I (5704) MB_TCP_MASTER_PORT: TCP master stack initialized.
 I (5724) MB_TCP_MASTER_PORT: Host[IP]: "192.168.1.21"[192.168.1.21]

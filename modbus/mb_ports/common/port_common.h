@@ -24,7 +24,7 @@ extern "C" {
 
 #define MB_SER_PDU_SIZE_MIN             (3)
 #define MB_TIMER_TICS_PER_MS            (20UL)                         // Define number of timer reloads per 1 mS
-#define MB_TIMER_TICK_TIME_US           (1000 / MB_TIMER_TICS_PER_MS) // 50uS = one discreet for timer
+#define MB_TIMER_TICK_TIME_US           (1000 / MB_TIMER_TICS_PER_MS) // 50uS = one discrete for timer
 #define MB_EVENT_QUEUE_TIMEOUT_MAX_MS   (3000)
 #define MB_EVENT_QUEUE_TIMEOUT          (pdMS_TO_TICKS(CONFIG_FMB_EVENT_QUEUE_TIMEOUT))
 #define MB_EVENT_QUEUE_TIMEOUT_MAX      (pdMS_TO_TICKS(MB_EVENT_QUEUE_TIMEOUT_MAX_MS))
@@ -77,10 +77,10 @@ void unlock_obj(_lock_t *lock_ptr);
         spinlock_release(&lock); \
     } while (0)
 
-#define MB_EVENT_REQ_MASK (EventBits_t)(EV_MASTER_PROCESS_SUCCESS |       \
-                                        EV_MASTER_ERROR_RESPOND_TIMEOUT | \
-                                        EV_MASTER_ERROR_RECEIVE_DATA |    \
-                                        EV_MASTER_ERROR_EXECUTE_FUNCTION)
+#define MB_EVENT_REQ_MASK (EventBits_t)(EV_ERROR_OK |       \
+                                        EV_ERROR_RESPOND_TIMEOUT | \
+                                        EV_ERROR_RECEIVE_DATA |    \
+                                        EV_ERROR_EXECUTE_FUNCTION)
 
 #define MB_PORT_CHECK_EVENT(event, mask) (event & mask)
 #define MB_PORT_CLEAR_EVENT(event, mask) \
@@ -110,8 +110,7 @@ void unlock_obj(_lock_t *lock_ptr);
 
 typedef struct mb_port_base_t mb_port_base_t;
 
-typedef struct
-{
+typedef struct {
     mb_port_base_t *mb_base;
 } mb_common_iface_t;
 
@@ -127,8 +126,7 @@ typedef struct
 typedef bool (*mb_port_cb_fp)(void *arg);
 
 //!< port callback table for interrupts
-typedef struct
-{
+typedef struct {
     mb_port_cb_fp byte_rcvd;
     mb_port_cb_fp tx_empty;
     mb_port_cb_fp tmr_expired;
@@ -138,8 +136,7 @@ typedef struct mb_port_event_t mb_port_event_t;
 typedef struct mb_port_timer_t mb_port_timer_t;
 typedef struct obj_descr_s obj_descr_t;
 
-typedef struct frame_queue_entry_s
-{
+typedef struct frame_queue_entry_s {
     uint16_t tid;  /*!< Transaction identifier (TID) for slave */
     uint16_t pid;  /*!< Protocol ID field of MBAP frame */
     uint16_t uid;  /*!< Slave unit ID (UID) field for MBAP frame  */
@@ -148,8 +145,7 @@ typedef struct frame_queue_entry_s
     bool check;    /*!< Checked flag */
 } frame_entry_t;
 
-struct mb_port_base_t
-{
+struct mb_port_base_t {
     obj_descr_t descr;
     _lock_t lock;
     mb_port_cb_t cb; //!< Port callbacks.
@@ -165,7 +161,7 @@ bool mb_port_event_post(mb_port_base_t *inst, mb_event_t event);
 bool mb_port_event_get(mb_port_base_t *inst, mb_event_t *event);
 bool mb_port_event_res_take(mb_port_base_t *inst, uint32_t timeout);
 void mb_port_event_res_release(mb_port_base_t *inst);
-void mb_port_event_set_resp_flag(mb_port_base_t *inst, mb_event_enum_t event_mask);
+void mb_port_event_set_resp_flag(mb_port_base_t *inst, mb_err_event_t event_mask);
 void mb_port_event_set_err_type(mb_port_base_t *inst, mb_err_event_t event);
 mb_err_event_t mb_port_event_get_err_type(mb_port_base_t *inst);
 void mb_port_event_delete(mb_port_base_t *inst);

@@ -1,6 +1,12 @@
 /*
- * FreeModbus Libary: A portable Modbus implementation for Modbus ASCII/RTU.
- * Copyright (c) 2016, 2017 Nucleron R&D LLC <main@nucleron.ru>
+ * SPDX-FileCopyrightText: 2006 Christian Walter
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * SPDX-FileContributor: 2020-2025 Espressif Systems (Shanghai) CO LTD
+ */
+/*
+ * FreeModbus Library: A portable Modbus implementation for Modbus ASCII/RTU.
  * Copyright (c) 2006 Christian Walter <wolti@sil.at>
  * All rights reserved.
  *
@@ -77,7 +83,7 @@ mb_exception_t mbs_fn_read_coils(mb_base_t *inst, uint8_t *frame_ptr, uint16_t *
          * return Modbus illegal data value exception.
          */
         if ((coil_cnt >= 1) &&
-            (coil_cnt < MB_PDU_FUNC_READ_COILCNT_MAX)) {
+                (coil_cnt < MB_PDU_FUNC_READ_COILCNT_MAX)) {
             /* Set the current PDU data pointer to the beginning. */
             frame_cur = &frame_ptr[MB_PDU_FUNC_OFF];
             *len_buf = MB_PDU_FUNC_OFF;
@@ -93,7 +99,7 @@ mb_exception_t mbs_fn_read_coils(mb_base_t *inst, uint8_t *frame_ptr, uint16_t *
             } else {
                 byte_num = (uint8_t)(coil_cnt / 8);
             }
-            
+
             *frame_cur++ = byte_num;
             *len_buf += 1;
 
@@ -101,7 +107,7 @@ mb_exception_t mbs_fn_read_coils(mb_base_t *inst, uint8_t *frame_ptr, uint16_t *
                 reg_status = inst->rw_cbs.reg_coils_cb(inst, frame_cur, reg_addr, coil_cnt, MB_REG_READ);
             }
 
-            /* If an error occured convert it into a Modbus exception. */
+            /* If an error occurred convert it into a Modbus exception. */
             if (reg_status != MB_ENOERR) {
                 status = mb_error_to_exception(reg_status);
             } else {
@@ -136,8 +142,8 @@ mb_exception_t mbs_fn_write_coil(mb_base_t *inst, uint8_t *frame_ptr, uint16_t *
         reg_addr++;
 
         if ((frame_ptr[MB_PDU_FUNC_WRITE_VALUE_OFF + 1] == 0x00) &&
-            ((frame_ptr[MB_PDU_FUNC_WRITE_VALUE_OFF] == 0xFF) ||
-              (frame_ptr[MB_PDU_FUNC_WRITE_VALUE_OFF] == 0x00))) {
+                ((frame_ptr[MB_PDU_FUNC_WRITE_VALUE_OFF] == 0xFF) ||
+                 (frame_ptr[MB_PDU_FUNC_WRITE_VALUE_OFF] == 0x00))) {
             buf[1] = 0;
             if (frame_ptr[MB_PDU_FUNC_WRITE_VALUE_OFF] == 0xFF) {
                 buf[0] = 1;
@@ -149,7 +155,7 @@ mb_exception_t mbs_fn_write_coil(mb_base_t *inst, uint8_t *frame_ptr, uint16_t *
                 reg_status = inst->rw_cbs.reg_coils_cb(inst, &buf[0], reg_addr, 1, MB_REG_WRITE);
             }
 
-            /* If an error occured convert it into a Modbus exception. */
+            /* If an error occurred convert it into a Modbus exception. */
             if (reg_status != MB_ENOERR) {
                 status = mb_error_to_exception(reg_status);
             }
@@ -195,13 +201,13 @@ mb_exception_t mbs_fn_write_multi_coils(mb_base_t *inst, uint8_t *frame_ptr, uin
         }
 
         if ((coil_cnt >= 1) &&
-            (coil_cnt <= MB_PDU_FUNC_WRITE_MUL_COILCNT_MAX) &&
-            (byte_cnt_verify == byte_cnt)) {
+                (coil_cnt <= MB_PDU_FUNC_WRITE_MUL_COILCNT_MAX) &&
+                (byte_cnt_verify == byte_cnt)) {
             if (inst->rw_cbs.reg_coils_cb) {
                 reg_status = inst->rw_cbs.reg_coils_cb(inst, &frame_ptr[MB_PDU_FUNC_WRITE_MUL_VALUES_OFF], reg_addr, coil_cnt, MB_REG_WRITE);
             }
 
-            /* If an error occured convert it into a Modbus exception. */
+            /* If an error occurred convert it into a Modbus exception. */
             if (reg_status != MB_ENOERR) {
                 status = mb_error_to_exception(reg_status);
             } else {

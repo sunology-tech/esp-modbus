@@ -1,5 +1,12 @@
 /*
- * FreeModbus Libary: A portable Modbus implementation for Modbus ASCII/RTU.
+ * SPDX-FileCopyrightText: 2006 Christian Walter
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * SPDX-FileContributor: 2020-2023 Espressif Systems (Shanghai) CO LTD
+ */
+/*
+ * FreeModbus Library: A portable Modbus implementation for Modbus ASCII/RTU.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,10 +48,9 @@ extern "C" {
  * Modbus serial supports two transmission modes. Either ASCII or RTU. RTU
  * is faster but has more hardware requirements and requires a network with
  * a low jitter. ASCII is slower and more reliable on slower links (E.g. modems)
- * The TCP or UDP mode is used for communication over ethernet. 
+ * The TCP or UDP mode is used for communication over ethernet.
  */
-typedef enum mb_comm_mode_enum
-{
+typedef enum mb_comm_mode_enum {
     MB_RTU,                     /*!< RTU transmission mode. */
     MB_ASCII,                   /*!< ASCII transmission mode. */
     MB_TCP,                     /*!< TCP mode. */
@@ -62,8 +68,7 @@ typedef enum mb_comm_mode_enum
  * \see mbs_reg_holding_cb(), mbs_reg_coils_cb(), mbs_reg_holding_cb() and
  *   mbs_reg_input_cb().
  */
-typedef enum
-{
+typedef enum {
     MB_REG_READ = 0x0001,   /*!< Read register values and pass to protocol stack. */
     MB_REG_WRITE = 0x0002,  /*!< Update register values. */
 } mb_reg_mode_enum_t;
@@ -78,18 +83,13 @@ typedef enum mb_event_enum {
     EV_EXECUTE = 0x0008,                        /*!< Execute function. */
     EV_FRAME_TRANSMIT = 0x0010,                 /*!< Transmission started . */
     EV_FRAME_SENT = 0x0020,                     /*!< Frame sent. */
-    EV_ERROR_PROCESS = 0x0040,                  /*!< Error process state. */
-    EV_MASTER_ERROR_RESPOND_TIMEOUT = 0x0080,   /*!< Request respond timeout. */
-    EV_MASTER_ERROR_RECEIVE_DATA = 0x0100,      /*!< Request receive data error. */
-    EV_MASTER_ERROR_EXECUTE_FUNCTION = 0x0200,  /*!< Request execute function error. */
-    EV_MASTER_PROCESS_SUCCESS = 0x0400          /*!< Master error process. */
+    EV_ERROR_PROCESS = 0x0040                   /*!< Error process state. */
 } mb_event_enum_t;
 
 /*! \ingroup modbus
  * \brief Modbus exception types used in the stack.
  */
-typedef enum mb_exception_enum
-{
+typedef enum mb_exception_enum {
     MB_EX_NONE = 0x00,
     MB_EX_ILLEGAL_FUNCTION = 0x01,
     MB_EX_ILLEGAL_DATA_ADDRESS = 0x02,
@@ -109,28 +109,27 @@ typedef mb_exception_t (*mb_fn_handler_fp)(void *, uint8_t *frame_ptr, uint16_t 
  * \brief Error event type
  */
 typedef enum mb_err_event_enum {
-    EV_ERROR_INIT,             /*!< No error, initial state. */
-    EV_ERROR_RESPOND_TIMEOUT,  /*!< Slave respond timeout. */
-    EV_ERROR_RECEIVE_DATA,     /*!< Receive frame data error. */
-    EV_ERROR_EXECUTE_FUNCTION, /*!< Execute function error. */
-    EV_ERROR_OK                /*!< No error, processing completed. */
+    EV_ERROR_INIT,                      /*!< No error, initial state. */
+    EV_ERROR_RESPOND_TIMEOUT = 0x01,    /*!< Slave respond timeout. */
+    EV_ERROR_RECEIVE_DATA = 0x02,       /*!< Receive frame data error. */
+    EV_ERROR_EXECUTE_FUNCTION = 0x04,   /*!< Execute function error. */
+    EV_ERROR_OK = 0x08                  /*!< No error, processing completed. */
 } mb_err_event_t;
 
 typedef struct mb_event_s {
     mb_event_enum_t event;      /*!< event itself. */
     uint64_t trans_id;          /*!< unique transaction id */
-    uint16_t length;            /*!< length of data accociated with the event */ 
-    void *data_ptr;             /*!< data accociated with the event */
-    mb_err_event_t type;        /*!< error type accociated with the event */
+    uint16_t length;            /*!< length of data associated with the event */
+    void *data_ptr;             /*!< data associated with the event */
+    mb_err_event_t type;        /*!< error type associated with the event */
     uint64_t post_ts;           /*!< timestamp of event posted */
-    uint64_t get_ts;            /*!< timestamp of event receved */
+    uint64_t get_ts;            /*!< timestamp of event received */
 } mb_event_t;
 
 /*! \ingroup modbus
  * \brief Errorcodes used by all function in the protocol stack.
  */
-typedef enum
-{
+typedef enum {
     MB_ENOERR,                  /*!< no error. */
     MB_ENOREG,                  /*!< illegal register address. */
     MB_EINVAL,                  /*!< illegal argument. */
@@ -148,14 +147,12 @@ typedef enum
 /*! \ingroup modbus
  *  \brief TimerMode is Master 3 kind of Timer modes.
  */
-typedef enum
-{
-	MB_TMODE_T35,                   /*!< Master receive frame T3.5 timeout. */
-	MB_TMODE_RESPOND_TIMEOUT,       /*!< Master wait respond for slave. */
-	MB_TMODE_CONVERT_DELAY          /*!< Master sent broadcast , then delay sometime.*/
+typedef enum {
+    MB_TMODE_T35,                   /*!< Master receive frame T3.5 timeout. */
+    MB_TMODE_RESPOND_TIMEOUT,       /*!< Master wait respond for slave. */
+    MB_TMODE_CONVERT_DELAY          /*!< Master sent broadcast , then delay sometime.*/
 } mb_timer_mode_enum_t;
 
 #ifdef __cplusplus
 }
 #endif
-

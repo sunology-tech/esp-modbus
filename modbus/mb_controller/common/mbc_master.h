@@ -12,7 +12,6 @@
 #include "freertos/event_groups.h"  // for event groups
 #include "freertos/semphr.h"        // for semaphore
 #include "freertos/queue.h"         // for queue api access
-#include "driver/uart.h"            // for UART types
 #include "errno.h"                  // for errno
 #include "esp_log.h"                // for log write
 #include "string.h"                 // for strerror()
@@ -29,8 +28,8 @@ extern "C" {
 
 /* ----------------------- Defines ------------------------------------------*/
 
-// Set the maximum resource waiting time, the actual time of resouce release
-// will be dependent on response time set by timer + convertion time if the command is received
+// Set the maximum resource waiting time, the actual time of resource release
+// will be dependent on response time set by timer + conversion time if the command is received
 #define MB_MAX_RESP_DELAY_MS (3000)
 
 /**
@@ -51,8 +50,8 @@ typedef struct {
 typedef esp_err_t (*iface_get_cid_info_fp)(void *, uint16_t, const mb_parameter_descriptor_t **);           /*!< Interface get_cid_info method */
 typedef esp_err_t (*iface_get_parameter_fp)(void *, uint16_t, uint8_t *, uint8_t *);                        /*!< Interface get_parameter method */
 typedef esp_err_t (*iface_get_parameter_with_fp)(void *, uint16_t, uint8_t, uint8_t *, uint8_t *);          /*!< Interface get_parameter_with method */
-typedef esp_err_t (*iface_send_request_fp)(void *, mb_param_request_t*, void *);                            /*!< Interface send_request method */
-typedef esp_err_t (*iface_mbm_set_descriptor_fp)(void *, const mb_parameter_descriptor_t*, const uint16_t); /*!< Interface set_descriptor method */
+typedef esp_err_t (*iface_send_request_fp)(void *, mb_param_request_t *, void *);                           /*!< Interface send_request method */
+typedef esp_err_t (*iface_mbm_set_descriptor_fp)(void *, const mb_parameter_descriptor_t *, const uint16_t); /*!< Interface set_descriptor method */
 typedef esp_err_t (*iface_set_parameter_fp)(void *, uint16_t, uint8_t *, uint8_t *);                        /*!< Interface set_parameter method */
 typedef esp_err_t (*iface_set_parameter_with_fp)(void *, uint16_t, uint8_t, uint8_t *, uint8_t *);          /*!< Interface set_parameter_with method */
 

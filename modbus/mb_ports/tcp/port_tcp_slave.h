@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 #pragma once
 
 /* ----------------------- Platform includes --------------------------------*/
@@ -9,7 +14,6 @@
 #include "esp_err.h"
 #include "esp_timer.h"
 #include "sys/time.h"
-#include "esp_netif.h"
 
 #include "mb_common.h"
 #include "mb_frame.h"

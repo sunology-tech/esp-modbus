@@ -13,7 +13,7 @@
 #endif
 
 // Workaround for atomics incompatibility issue under CPP.
-#if defined(__cplusplus) && (IDF_VERSION <= ESP_IDF_VERSION_VAL(5, 0, 0))
+#if defined(__cplusplus) && (ESP_IDF_VERSION <= ESP_IDF_VERSION_VAL(5, 0, 0))
 #include <atomic>
 #define _Atomic(T) std::atomic<T>
 #define atomic_int int
@@ -26,7 +26,7 @@ extern "C" {
 #else
 // This is to verify the atomic int types for C compilation unit have the same layout as int type.
 static_assert(
-    (sizeof(_Atomic(int)) == sizeof(int) && sizeof(_Atomic int) == sizeof(int)),
+    (sizeof(_Atomic(int)) == sizeof(int) &&sizeof(_Atomic int) == sizeof(int)),
     "the _Atomic int types are not layout compatible with int type"
 );
 #endif
@@ -84,8 +84,8 @@ struct port_tcp_opts_s {
 
 typedef struct port_tcp_opts_s mb_tcp_opts_t;
 
-// The common object descriptor struture (common for mb, transport, port objects)
-struct obj_descr_s { 
+// The common object descriptor structure (common for mb, transport, port objects)
+struct obj_descr_s {
     char *parent_name;              /*!< Name of the parent (base) object */
     char *obj_name;                 /*!< Name of the object */
     void *parent;                   /*!< Pointer to the parent (base) object */

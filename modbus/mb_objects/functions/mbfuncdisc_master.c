@@ -1,6 +1,12 @@
 /*
- * FreeModbus Libary: A portable Modbus implementation for Modbus ASCII/RTU.
- * Copyright (c) 2016, 2017 Nucleron R&D LLC <main@nucleron.ru>
+ * SPDX-FileCopyrightText: 2013 Armink
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * SPDX-FileContributor: 2020-2025 Espressif Systems (Shanghai) CO LTD
+ */
+/*
+ * FreeModbus Library: A portable Modbus implementation for Modbus ASCII/RTU.
  * Copyright (C) 2013 Armink <armink.ztl@gmail.com>
  * All rights reserved.
  *
@@ -118,12 +124,12 @@ mb_exception_t mbm_fn_read_discrete_inputs(mb_base_t *inst, uint8_t *frame_ptr, 
         if ((discrete_cnt >= 1) && byte_num == frame_ptr[MB_PDU_FUNC_READ_DISCCNT_OFF]) {
             /* Make callback to fill the buffer. */
             if (inst->rw_cbs.reg_discrete_cb) {
-                reg_status = inst->rw_cbs.reg_discrete_cb(inst, &frame_ptr[MB_PDU_FUNC_READ_VALUES_OFF], 
-                                                            reg_address, discrete_cnt);
+                reg_status = inst->rw_cbs.reg_discrete_cb(inst, &frame_ptr[MB_PDU_FUNC_READ_VALUES_OFF],
+                             reg_address, discrete_cnt);
             }
 
-            /* If an error occured convert it into a Modbus exception. */
-            if(reg_status != MB_ENOERR) {
+            /* If an error occurred convert it into a Modbus exception. */
+            if (reg_status != MB_ENOERR) {
                 status = mb_error_to_exception(reg_status);
             }
         } else {

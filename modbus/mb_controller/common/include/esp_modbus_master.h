@@ -133,10 +133,11 @@ typedef enum {
     PARAM_SIZE_FLOAT = 0x04,                /*!< Float 32 size */
     PARAM_SIZE_ASCII = 0x08,                /*!< ASCII size default*/
     PARAM_SIZE_ASCII24 = 0x18,              /*!< ASCII24 size */
+    PARAM_SIZE_ASCII_MAX = 0xFF,            /*!< ASCII maximum size */
     PARAM_SIZE_I64 = 0x08,                  /*!< Signed integer 64 size */
     PARAM_SIZE_U64 = 0x08,                  /*!< Unsigned integer 64 size */
     PARAM_SIZE_DOUBLE = 0x08,               /*!< Double 64 size */
-    PARAM_MAX_SIZE
+    PARAM_SIZE_MAX = 0x7FFF
 } mb_descr_size_t;
 
 /**
@@ -161,15 +162,15 @@ typedef enum {
  */
 typedef struct {
     uint16_t            cid;                /*!< Characteristic cid */
-    const char *        param_key;          /*!< The key (name) of the parameter */
-    const char *        param_units;        /*!< The physical units of the parameter */
+    const char         *param_key;          /*!< The key (name) of the parameter */
+    const char         *param_units;        /*!< The physical units of the parameter */
     uint8_t             mb_slave_addr;      /*!< Slave address of device in the Modbus segment */
     mb_param_type_t     mb_param_type;      /*!< Type of modbus parameter */
     uint16_t            mb_reg_start;       /*!< This is the Modbus register address. This is the 0 based value. */
     uint16_t            mb_size;            /*!< Size of mb parameter in registers */
     uint32_t            param_offset;       /*!< Parameter name (OFFSET in the parameter structure or address of instance) */
     mb_descr_type_t     param_type;         /*!< Float, U8, U16, U32, ASCII, etc. */
-    mb_descr_size_t     param_size;         /*!< Number of bytes in the parameter. */
+    size_t              param_size;         /*!< Number of bytes in the parameter. */
     mb_parameter_opt_t  param_opts;         /*!< Parameter options used to check limits and etc. */
     mb_param_perms_t    access;             /*!< Access permissions based on mode */
 } mb_parameter_descriptor_t;
@@ -216,7 +217,7 @@ esp_err_t mbc_master_create_serial(mb_communication_info_t *config, void **ctx);
 /**
  * @brief Deletes Modbus controller and stack engine
  *
- * @param[in] ctx context pointer of the initialized modbus interface 
+ * @param[in] ctx context pointer of the initialized modbus interface
  *
  * @return
  *     - ESP_OK   Success
@@ -258,7 +259,7 @@ esp_err_t mbc_master_start(void *ctx);
 /**
  * @brief Stops Modbus communication stack
  *
- * @param[in] ctx context pointer of the initialized modbus interface 
+ * @param[in] ctx context pointer of the initialized modbus interface
  *
  * @return
  *     - ESP_OK   Success
@@ -275,7 +276,7 @@ esp_err_t mbc_master_stop(void *ctx);
 /**
  * @brief Assign parameter description table for Modbus controller interface.
  *
- * @param[in] ctx context pointer of the initialized modbus interface 
+ * @param[in] ctx context pointer of the initialized modbus interface
  * @param[in] descriptor pointer to parameter description table
  * @param num_elements number of elements in the table
  *
@@ -290,7 +291,7 @@ esp_err_t mbc_master_set_descriptor(void *ctx, const mb_parameter_descriptor_t *
  *        from slave and returns status of command execution. This function provides standard way
  *        for read/write access to Modbus devices in the network.
  *
- * @param[in] ctx context pointer of the initialized modbus interface 
+ * @param[in] ctx context pointer of the initialized modbus interface
  * @param[in] request pointer to request structure of type mb_param_request_t
  * @param[in] data_ptr pointer to data buffer to send or received data (dependent of command field in request)
  *
@@ -309,7 +310,7 @@ esp_err_t mbc_master_send_request(void *ctx, mb_param_request_t *request, void *
  *        this information. The function will check if characteristic defined as a cid parameter is supported
  *        and returns its description in param_info. Returns ESP_ERR_NOT_FOUND if characteristic is not supported.
  *
- * @param[in] ctx context pointer of the initialized modbus interface 
+ * @param[in] ctx context pointer of the initialized modbus interface
  * @param[in] cid characteristic id
  * @param param_info pointer to pointer of characteristic data.
  *
@@ -319,13 +320,13 @@ esp_err_t mbc_master_send_request(void *ctx, mb_param_request_t *request, void *
  *     - esp_err_t ESP_ERR_NOT_FOUND - the characteristic (cid) not found
  *     - esp_err_t ESP_FAIL - unknown error during lookup table processing
 */
-esp_err_t mbc_master_get_cid_info(void *ctx, uint16_t cid, const mb_parameter_descriptor_t** param_info);
+esp_err_t mbc_master_get_cid_info(void *ctx, uint16_t cid, const mb_parameter_descriptor_t **param_info);
 
 /**
  * @brief Read parameter from modbus slave device whose name is defined by name and has cid.
  *        The additional data for request is taken from parameter description (lookup) table.
  *
- * @param[in] ctx context pointer of the initialized modbus interface 
+ * @param[in] ctx context pointer of the initialized modbus interface
  * @param[in] cid id of the characteristic for parameter
  * @param[out] value pointer to data buffer of parameter
  * @param[out] type parameter type associated with the name returned from parameter description table.
@@ -348,7 +349,7 @@ esp_err_t mbc_master_get_parameter(void *ctx, uint16_t cid, uint8_t *value, uint
  * @brief Read parameter from modbus slave device whose name is defined by name and has cid.
  *        The additional data for request is taken from parameter description (lookup) table.
  *
- * @param[in] ctx context pointer of the initialized modbus interface 
+ * @param[in] ctx context pointer of the initialized modbus interface
  * @param[in] cid id of the characteristic for parameter
  * @param[in] uid unit identificator of the slave to set parameter
  * @param[out] value pointer to data buffer of parameter
@@ -371,8 +372,8 @@ esp_err_t mbc_master_get_parameter_with(void *ctx, uint16_t cid, uint8_t uid, ui
 /**
  * @brief Set characteristic's value defined as a name and cid parameter.
  *        The additional data for cid parameter request is taken from master parameter lookup table.
- * 
- * @param[in] ctx context pointer of the initialized modbus interface 
+ *
+ * @param[in] ctx context pointer of the initialized modbus interface
  * @param[in] cid id of the characteristic for parameter
  * @param[out] value pointer to data buffer of parameter (actual representation of json value field in binary form)
  * @param[out] type pointer to parameter type associated with the name returned from parameter lookup table.
@@ -392,8 +393,8 @@ esp_err_t mbc_master_set_parameter(void *ctx, uint16_t cid, uint8_t *value, uint
 /**
  * @brief Set characteristic's value defined as a name and cid parameter.
  *        The additional data for cid parameter request is taken from master parameter lookup table.
- * 
- * @param[in] ctx context pointer of the initialized modbus interface 
+ *
+ * @param[in] ctx context pointer of the initialized modbus interface
  * @param[in] cid id of the characteristic for parameter
  * @param[in] uid unit identificator of the slave to set parameter
  * @param[out] value pointer to data buffer of parameter (actual representation of json value field in binary form)
@@ -419,7 +420,7 @@ esp_err_t mbc_master_set_parameter_with(void *ctx, uint16_t cid, uint8_t uid, ui
  * @param[in] reg_address - start address of register
  * @param[in] mode - parameter access mode (MB_REG_READ, MB_REG_WRITE)
  * @param[in] num_regs - number of registers
- * 
+ *
  * @return
  *     - MB_ENOERR: Read write is successful
  *     - MB_ENOREG: The argument is incorrect
@@ -447,7 +448,7 @@ mb_err_enum_t mbc_reg_input_master_cb(mb_base_t *inst, uint8_t *reg_buffer, uint
  * @param[in] reg_buffer input buffer of registers
  * @param[in] reg_address - start address of register
  * @param[in] n_discrete - number of discrete registers
- * 
+ *
  * @return
  *     - MB_ENOERR: Read write is successful
  *     - MB_ENOREG: The argument is incorrect
@@ -483,7 +484,7 @@ mb_err_enum_t mbc_reg_coils_master_cb(mb_base_t *inst, uint8_t *reg_buffer, uint
  *     - esp_err_t ESP_ERR_INVALID_ARG - invalid argument of function or parameter descriptor
  *     - esp_err_t ESP_ERR_NOT_SUPPORTED - the request command is not supported by slave
 */
-esp_err_t mbc_master_set_param_data(void* dest, void* src, mb_descr_type_t param_type, size_t param_size);
+esp_err_t mbc_master_set_param_data(void *dest, void *src, mb_descr_type_t param_type, size_t param_size);
 
 
 /**
@@ -502,4 +503,3 @@ uint8_t mbc_master_get_command(const mb_parameter_descriptor_t *descr, mb_param_
 #ifdef __cplusplus
 }
 #endif
-

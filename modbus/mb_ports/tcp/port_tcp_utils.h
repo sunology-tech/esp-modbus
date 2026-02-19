@@ -15,8 +15,7 @@ extern "C" {
 #include "lwip/err.h"
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
-#include "esp_netif.h"
-#include "net/if.h"
+#include "net/if.h"     // for SOMAXCONN
 
 #include "port_tcp_common.h"
 
@@ -32,13 +31,29 @@ extern "C" {
 #include "mdns.h"
 #endif
 
+#if __has_include("esp_netif.h")
+#include "esp_netif.h"
+#endif
+
 // Workaround for MDNS_NAME_BUF_LEN being defined in private header
 #ifndef MDNS_NAME_BUF_LEN
 #define MDNS_NAME_BUF_LEN 64
+#else
+# undef MDNS_NAME_BUF_LEN
+# if defined(CONFIG_LWIP_IPV6) && defined(CONFIG_MDNS_RESPOND_REVERSE_QUERIES)
+#  define MDNS_NAME_BUF_LEN 69
+# else
+#  define MDNS_NAME_BUF_LEN 65
+# endif
+# if (MDNS_NAME_MAX_LEN + 1) != MDNS_NAME_BUF_LEN
+#  error "wrong MDNS_NAME_MAX_LEN value; check with mdns.h header"
+# endif
 #endif
 
-#define HOST_STR_MAX_LEN            (MDNS_NAME_BUF_LEN)
 #define MB_TCP_NET_LISTEN_BACKLOG   (SOMAXCONN)
+
+#define STRCAT(x) #x
+#define XSTR(x) STRCAT(x)
 
 #if MB_MDNS_IS_INCLUDED
 
@@ -62,14 +77,15 @@ extern "C" {
 #define MB_MDNS_QUERY_TIME_MS (2000)
 
 #define MB_STR_LEN_HOST 1  // "mb_node_tcp_01"
-#define MB_STR_LEN_IDX_HOST 2  // "12:mb_node_tcp_01"
-#define MB_STR_LEN_IDX_HOST_PORT 3 // "01:mb_node_tcp_01:1502"
+#define MB_STR_LEN_IDX_HOST 2  // "12;mb_node_tcp_01"
+#define MB_STR_LEN_HOST_PORT 2  // "mb_node_tcp_01;502"
+#define MB_STR_LEN_IDX_HOST_PORT 3 // "01;mb_node_tcp_01;1502"
 #define MB_STR_LEN_IP4_ONLY 4 // "192.168.1.1"
-#define MB_STR_LEN_IDX_IP4 5 // "1:192.168.1.1"
-#define MB_STR_LEN_IDX_IP4_PORT 6 // "1:192.168.1.1:502"
+#define MB_STR_LEN_IDX_IP4 5 // "1;192.168.1.1"
+#define MB_STR_LEN_IDX_IP4_PORT 6 // "1;192.168.1.1;502"
 #define MB_STR_LEN_IP6_ONLY 8 // "2001:0db8:85a3:0000:0000:8a2e:0370:7334"
-#define MB_STR_LEN_IDX_IP6 9 // "12:2001:0db8:85a3:0000:0000:8a2e:0370:7334"
-#define MB_STR_LEN_IDX_IP6_PORT 10 // "12:2001:0db8:85a3:0000:0000:8a2e:0370:7334:502"
+#define MB_STR_LEN_IDX_IP6 9 // "12;2001:0db8:85a3:0000:0000:8a2e:0370:7334"
+#define MB_STR_LEN_IDX_IP6_PORT 10 // "12;2001:0db8:85a3:0000:0000:8a2e:0370:7334;502"
 
 #define MB_MDNS_STR_MIN_LENGTH 10 // "mb_node_01"
 #define MB_MDNS_SEGMENT_NAME "mb_tcp_segment" // "mb_node_01"
@@ -84,19 +100,19 @@ typedef struct frame_queue_entry_s frame_entry_t;
 typedef struct mb_node_info_s mb_node_info_t;
 typedef enum addr_type_enum mb_tcp_addr_type_t;
 
-bool port_check_host_addr(const char *host_str, ip_addr_t* host_addr);
-mb_node_info_t* port_get_current_info(void *ctx);
+bool port_check_host_addr(const char *host_str, ip_addr_t *host_addr);
+mb_node_info_t *port_get_current_info(void *ctx);
 void port_check_shutdown(void *ctx);
-int64_t port_get_resp_time_left(mb_node_info_t* info_ptr);
+int64_t port_get_resp_time_left(mb_node_info_t *info_ptr);
 int port_enqueue_packet(QueueHandle_t queue, uint8_t *buf, uint16_t len);
-int port_dequeue_packet(QueueHandle_t queue, frame_entry_t* frame_info);
-int port_read_packet(mb_node_info_t* info_ptr);
-err_t port_set_blocking(mb_node_info_t* info_ptr, bool is_blocking);
-int port_keep_alive(int sock);
-err_t port_check_alive(mb_node_info_t* info_ptr, uint32_t timeout_ms);
-err_t port_connect(void *ctx, mb_node_info_t* info_ptr);
-bool port_close_connection(mb_node_info_t* info_ptr);
-int port_write_poll(mb_node_info_t* info_ptr, const uint8_t *frame, uint16_t frame_len, uint32_t timeout);
+int port_dequeue_packet(QueueHandle_t queue, frame_entry_t *frame_info);
+int port_read_packet(mb_node_info_t *info_ptr);
+err_t port_set_blocking(mb_node_info_t *info_ptr, bool is_blocking);
+int port_keep_alive_enable(int sock, int timeout_sec);
+err_t port_check_alive(mb_node_info_t *info_ptr, uint32_t timeout_ms);
+err_t port_connect(void *ctx, mb_node_info_t *info_ptr);
+bool port_close_connection(mb_node_info_t *info_ptr);
+int port_write_poll(mb_node_info_t *info_ptr, const uint8_t *frame, uint16_t frame_len, uint32_t timeout);
 int64_t port_get_timestamp(void);
 
 typedef struct uid_info_s mb_uid_info_t;

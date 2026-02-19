@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2018-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2018-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,6 +11,7 @@
 #include "mb_common.h"
 #include "mbc_slave.h"
 #include "mbc_master.h"
+#include "esp_timer.h"              // for esp_timer_get_time()
 
 #include "test_common.h"
 #include "esp_heap_caps.h"
@@ -21,9 +22,6 @@
 #include "esp_heap_trace.h"
 #endif
 
-#define TEST_TASK_PRIO_MASTER       (CONFIG_MB_TEST_MASTER_TASK_PRIO)
-#define TEST_TASK_PRIO_SLAVE        (CONFIG_MB_TEST_SLAVE_TASK_PRIO)
-#define TEST_TASK_STACK_SIZE        (5120)
 #define TEST_TASK_CYCLE_COUNTER     (CONFIG_MB_TEST_COMM_CYCLE_COUNTER)
 #define TEST_BUSY_TASK_PRIO         (20)
 
@@ -42,8 +40,11 @@
 #define TEST_NOTIF_SIZE             (20)
 #define TEST_ALLOW_PROC_FAIL        (5) // percentage of allowed failures due to desynchronization
 #define TEST_TASK_TICK_TIME         (50 / portTICK_PERIOD_MS)
+#define TEST_DESTROY_MESSAGE_TOUT   (500)
+#define TEST_NOTIFY_DONE_TOUT       (200 / portTICK_PERIOD_MS)
 
 #define TAG "TEST_COMMON"
+#define MSG_DESTROY "Destroy instances\n\0"
 
 typedef enum {
     RT_HOLDING_RD,
@@ -93,13 +94,13 @@ static portMUX_TYPE s_list_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
 static void task_entry_remove(task_entry_t *task_entry)
 {
-        portENTER_CRITICAL(&s_list_spinlock);
-        LIST_REMOVE(task_entry, entries);
-        portEXIT_CRITICAL(&s_list_spinlock);
-        ESP_LOGD(TAG, "Delete task 0x%" PRIx32, (uint32_t)task_entry->task_handle);
-        vTaskDelete(task_entry->task_handle);
-        vSemaphoreDelete(task_entry->task_sema_handle);
-        free(task_entry);
+    portENTER_CRITICAL(&s_list_spinlock);
+    LIST_REMOVE(task_entry, entries);
+    portEXIT_CRITICAL(&s_list_spinlock);
+    ESP_LOGD(TAG, "Delete task 0x%" PRIx32, (uint32_t)task_entry->task_handle);
+    vTaskDelete(task_entry->task_handle);
+    vSemaphoreDelete(task_entry->task_sema_handle);
+    free(task_entry);
 }
 
 static bool task_wait_done_and_remove(task_entry_t *task_entry, TickType_t tout_ticks)
@@ -109,21 +110,21 @@ static bool task_wait_done_and_remove(task_entry_t *task_entry, TickType_t tout_
         if ((xSemaphoreTake(task_entry->task_sema_handle, tout_ticks) == pdTRUE)) {
             ESP_LOGI(TAG, "Test task 0x%" PRIx32 ", done successfully.", (uint32_t)task_entry->task_handle);
             is_done = true;
-        } else {
-            ESP_LOGE(TAG, "Could not complete task 0x%" PRIx32 " after timeout, force kill the task.",
-                        (uint32_t)task_entry->task_handle);
-            is_done = false;
+            task_entry_remove(task_entry);
         }
+        // Else statement removed from here.
+        //This is a workaround on how to handle the finishing of tasks without increasing  timeout of
+        //test_common_task_wait_done_delete_all() and task_wait_done_and_remove()
+
         vTaskDelay(1); // Let the lower priority task to suspend or delete itself
-        task_entry_remove(task_entry);
     }
     return (is_done);
 }
 
-static void test_task_add_entry(TaskHandle_t task_handle, void *inst)
+void test_task_add_entry(TaskHandle_t task_handle, void *inst)
 {
     TEST_ASSERT_TRUE(task_handle);
-    task_entry_t *new_entry = (task_entry_t*) calloc(1, sizeof(task_entry_t));
+    task_entry_t *new_entry = (task_entry_t *) calloc(1, sizeof(task_entry_t));
     TEST_ASSERT_TRUE(new_entry);
     portENTER_CRITICAL(&s_list_spinlock);
     new_entry->task_handle = task_handle;
@@ -137,7 +138,7 @@ static void test_task_add_entry(TaskHandle_t task_handle, void *inst)
 static task_entry_t *test_task_find_entry(TaskHandle_t task_handle)
 {
     TEST_ASSERT_NOT_NULL(task_handle);
-    
+
     task_entry_t *it, *pfound = NULL;
     if (LIST_EMPTY(&s_task_list)) {
         return NULL;
@@ -154,10 +155,45 @@ static task_entry_t *test_task_find_entry(TaskHandle_t task_handle)
     return pfound;
 }
 
-static void test_common_task_notify_done(TaskHandle_t task_handle)
+void  test_common_task_notify_stop_all()
+{
+    task_entry_t *it = NULL;
+    if (LIST_EMPTY(&s_task_list)) {
+        return;
+    }
+
+    LIST_FOREACH(it, &s_task_list, entries) {
+        ESP_LOGD(TAG, "Notify task stop, inst: %p.", it->task_handle);
+        test_common_task_notify_start_and_stop(it->task_handle, TASK_STOP);
+    }
+    return;
+}
+
+bool test_common_wait_check_destroy_message(char *message, uint32_t timeout_ms)
+{
+    /* Read line from console, non-blocking function, timeout in ms */
+
+    char buffer[64] = {0};     //fixed size buffer to store the input from stdin
+
+    ESP_LOGD(TAG, "Waiting for destroy message: \"%s\" (timeout: %lu ms)", message, timeout_ms);
+
+    vTaskDelay(pdMS_TO_TICKS(timeout_ms));
+    if (fgets(buffer, sizeof(buffer), stdin) != NULL) {
+        ESP_LOGD(TAG, "%s: received: %s", __func__, buffer);
+    }
+
+    if (strcmp(buffer, message) == 0) {
+        ESP_LOGD(TAG, "Destroy message matched, notifying to destroy instances.");
+        return true;
+    }
+    ESP_LOGD(TAG, "Timeout waiting for destroy message.");
+    return false;
+}
+
+void test_common_task_notify_done(TaskHandle_t task_handle)
 {
     task_entry_t *it = test_task_find_entry(task_handle);
-    if (it) { 
+    if (it) {
         xSemaphoreGive(it->task_sema_handle);
     }
 }
@@ -167,9 +203,9 @@ static void test_busy_task(void *phandle)
     spinlock_t spin_lock;
     SPIN_LOCK_INIT(spin_lock);
     ESP_EARLY_LOGW(TAG, "test task");
-    while(1) {
+    while (1) {
         SPIN_LOCK_ENTER(spin_lock);
-        for (int i = 0; i < TEST_BUSY_COUNT; i++){
+        for (int i = 0; i < TEST_BUSY_COUNT; i++) {
             ;
         }
         SPIN_LOCK_EXIT(spin_lock);
@@ -180,10 +216,10 @@ static void test_busy_task(void *phandle)
 void test_common_task_start(TaskHandle_t task_handle, uint32_t value)
 {
     // Directly notify the task waiting to start loop
-    test_common_task_notify_start(task_handle, value);
+    test_common_task_notify_start_and_stop(task_handle, value);
 }
 
-int test_common_task_start_all(uint32_t value)
+int test_common_task_start_all()
 {
     task_entry_t *it = NULL;
     if (LIST_EMPTY(&s_task_list)) {
@@ -191,7 +227,7 @@ int test_common_task_start_all(uint32_t value)
     }
     int task_count = 0;
     LIST_FOREACH(it, &s_task_list, entries) {
-        test_common_task_notify_start(it->task_handle, value);
+        test_common_task_notify_start_and_stop(it->task_handle, TASK_START);
         task_count++;
     }
     return task_count;
@@ -216,13 +252,32 @@ int test_common_task_wait_done_delete_all(TickType_t task_timeout_tick)
 {
     task_entry_t *it, *ptmp = NULL;
     int task_count = 0;
+    int64_t start_time = esp_timer_get_time(); //getting the reference system time to compare
+
     if (LIST_EMPTY(&s_task_list)) {
         return 0;
     }
-    LIST_FOREACH_SAFE(it, &s_task_list, entries, ptmp) {
-        task_wait_done_and_remove(it, task_timeout_tick);
-        task_count++;
+
+    while ((esp_timer_get_time() - start_time) <= (task_timeout_tick * portTICK_PERIOD_MS * 1000)) {
+
+        if (LIST_EMPTY(&s_task_list)) {
+            return task_count;
+        }
+
+        if (test_common_wait_check_destroy_message(MSG_DESTROY, TEST_DESTROY_MESSAGE_TOUT)) {
+            test_common_task_notify_stop_all();
+        }
+
+        LIST_FOREACH_SAFE(it, &s_task_list, entries, ptmp) {
+            if (task_wait_done_and_remove(it, TEST_NOTIFY_DONE_TOUT)) {
+                task_count++;
+            }
+        }
+
+        vTaskDelay(TEST_TASK_TICK_TIME);
+
     }
+    task_count = test_common_task_delete_all();
     return task_count;
 }
 
@@ -234,18 +289,21 @@ void test_common_task_delete(TaskHandle_t task_handle)
     }
 }
 
-void test_common_task_delete_all()
+int test_common_task_delete_all()
 {
     task_entry_t *it = NULL;
+    int task_count = 0;
     while ((it = LIST_FIRST(&s_task_list))) {
         task_entry_remove(it);
+        task_count++;
     }
+    return task_count;
 }
 
 void *test_common_task_get_instance(TaskHandle_t task_handle)
 {
     task_entry_t *it = test_task_find_entry(task_handle);
-    if (it) { 
+    if (it) {
         return it->inst_handle;
     }
     return NULL;
@@ -261,9 +319,9 @@ TaskHandle_t test_common_start_busy_task(uint32_t priority)
     }
 
     TEST_ASSERT_TRUE(xTaskCreatePinnedToCore(test_busy_task, "busy_task",
-                                            TEST_TASK_STACK_SIZE,
-                                            NULL, priority,
-                                            &busy_task_handle, MB_PORT_TASK_AFFINITY));
+                     TEST_TASK_STACK_SIZE,
+                     NULL, priority,
+                     &busy_task_handle, MB_PORT_TASK_AFFINITY));
     test_task_add_entry(busy_task_handle, NULL);
     return busy_task_handle;
 }
@@ -299,27 +357,28 @@ void test_common_stop()
 #endif
     size_t after_free_8bit = heap_caps_get_free_size(MALLOC_CAP_8BIT);
     size_t after_free_32bit = heap_caps_get_free_size(MALLOC_CAP_32BIT);
-    test_common_check_leak(before_free_8bit, after_free_8bit, "8BIT", 
-                            CONFIG_MB_TEST_LEAK_WARN_LEVEL, CONFIG_MB_TEST_LEAK_CRITICAL_LEVEL);
-    test_common_check_leak(before_free_32bit, after_free_32bit, "32BIT", 
-                            CONFIG_MB_TEST_LEAK_WARN_LEVEL, CONFIG_MB_TEST_LEAK_CRITICAL_LEVEL);
+    test_common_check_leak(before_free_8bit, after_free_8bit, "8BIT",
+                           CONFIG_MB_TEST_LEAK_WARN_LEVEL, CONFIG_MB_TEST_LEAK_CRITICAL_LEVEL);
+    test_common_check_leak(before_free_32bit, after_free_32bit, "32BIT",
+                           CONFIG_MB_TEST_LEAK_WARN_LEVEL, CONFIG_MB_TEST_LEAK_CRITICAL_LEVEL);
 }
 
-static uint32_t test_common_task_wait_start(TickType_t timeout_ticks)
+uint32_t test_common_task_wait_start_and_stop(TickType_t timeout_ticks)
 {
     static uint32_t notify_value = 0;
 
     if (xTaskNotifyWait(0, 0, &notify_value, timeout_ticks) == pdTRUE) {
-        ESP_LOGD(TAG, "Task: 0x%" PRIx32 ", get notify value = %u", 
-                        (uint32_t)xTaskGetCurrentTaskHandle(), (unsigned)notify_value);
+        ESP_LOGD(TAG, "Task: 0x%" PRIx32 ", get notify value = %u",
+                 (uint32_t)xTaskGetCurrentTaskHandle(), (unsigned)notify_value);
         return pdTRUE;
     }
     return 0;
 }
 
-void test_common_task_notify_start(TaskHandle_t task_handle, uint32_t value)
+void test_common_task_notify_start_and_stop(TaskHandle_t task_handle, uint32_t value)
 {
-    ESP_LOGD(TAG, "Notify task start 0x%" PRIx32, (uint32_t)task_handle);
+    char *task_state = (value == TASK_START) ? "start" :  "stop";
+    ESP_LOGD(TAG, "Notify task %s  0x%" PRIx32, task_state, (uint32_t)task_handle);
     TEST_ASSERT_EQUAL_INT(xTaskNotify(task_handle, value, eSetValueWithOverwrite), pdTRUE);
 }
 
@@ -358,21 +417,17 @@ esp_err_t test_common_read_modbus_parameter(void *handle, uint16_t cid, uint16_t
     const mb_parameter_descriptor_t *param_descriptor = NULL;
 
     esp_err_t err = mbc_master_get_cid_info(handle, cid, &param_descriptor);
-    if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL))
-    {
+    if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
         uint8_t type = 0;
         err = mbc_master_get_parameter(handle, cid, (uint8_t *)par_data, &type);
-        if (err == ESP_OK)
-        {
+        if (err == ESP_OK) {
             ESP_LOGI(TAG, "%p, CHAR #%u %s (%s) value = (0x%04x) parameter read successful.",
                      handle,
                      param_descriptor->cid,
                      param_descriptor->param_key,
                      param_descriptor->param_units,
                      *(uint16_t *)par_data);
-        }
-        else
-        {
+        } else {
             ESP_LOGE(TAG, "%p, CHAR #%u (%s) read fail, err = 0x%x (%s).",
                      handle,
                      param_descriptor->cid,
@@ -390,21 +445,17 @@ esp_err_t write_modbus_parameter(void *handle, uint16_t cid, uint16_t *par_data)
     const mb_parameter_descriptor_t *param_descriptor = NULL;
 
     esp_err_t err = mbc_master_get_cid_info(handle, cid, &param_descriptor);
-    if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL))
-    {
+    if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
         uint8_t type = 0; // type of parameter from dictionary
         err = mbc_master_set_parameter(handle, cid, (uint8_t *)par_data, &type);
-        if (err == ESP_OK)
-        {
+        if (err == ESP_OK) {
             ESP_LOGI(TAG, "%p, CHAR #%u %s (%s) value = (0x%04x), write successful.",
                      handle,
                      param_descriptor->cid,
                      param_descriptor->param_key,
                      param_descriptor->param_units,
                      *(uint16_t *)par_data);
-        }
-        else
-        {
+        } else {
             ESP_LOGE(TAG, "%p, CHAR #%u (%s) write fail, err = 0x%x (%s).",
                      handle,
                      param_descriptor->cid,
@@ -427,7 +478,7 @@ static void test_master_task(void *arg)
     uint16_t cycle_counter = 0;
 
     // Wait task start notification during timeout
-    test_common_task_wait_start(TEST_TASK_START_TIMEOUT);
+    test_common_task_wait_start_and_stop(TEST_TASK_START_TIMEOUT);
 
     holding_registers[CID_DEV_REG0] = TEST_REG_VAL1;
     holding_registers[CID_DEV_REG1] = TEST_REG_VAL2;
@@ -438,42 +489,40 @@ static void test_master_task(void *arg)
     write_modbus_parameter(mbm_handle, CID_DEV_REG1, &holding_registers[CID_DEV_REG1]);
     write_modbus_parameter(mbm_handle, CID_DEV_REG2, &holding_registers[CID_DEV_REG2]);
     write_modbus_parameter(mbm_handle, CID_DEV_REG3, &holding_registers[CID_DEV_REG3]);
-    for (cycle_counter = 0; cycle_counter <= TEST_TASK_CYCLE_COUNTER; cycle_counter++)
-    {
-        switch (req_type)
-        {
-            case RT_HOLDING_RD:
-                err = test_common_read_modbus_parameter(mbm_handle, CID_DEV_REG0, &holding_registers[CID_DEV_REG0]);
-                CHECK_PAR_VALUE(CID_DEV_REG0, err, holding_registers[CID_DEV_REG0], TEST_REG_VAL1);
+    for (cycle_counter = 0; cycle_counter <= TEST_TASK_CYCLE_COUNTER; cycle_counter++) {
+        switch (req_type) {
+        case RT_HOLDING_RD:
+            err = test_common_read_modbus_parameter(mbm_handle, CID_DEV_REG0, &holding_registers[CID_DEV_REG0]);
+            CHECK_PAR_VALUE(CID_DEV_REG0, err, holding_registers[CID_DEV_REG0], TEST_REG_VAL1);
 
-                err = test_common_read_modbus_parameter(mbm_handle, CID_DEV_REG1, &holding_registers[CID_DEV_REG1]);
-                CHECK_PAR_VALUE(CID_DEV_REG1, err, holding_registers[CID_DEV_REG1], TEST_REG_VAL2);
+            err = test_common_read_modbus_parameter(mbm_handle, CID_DEV_REG1, &holding_registers[CID_DEV_REG1]);
+            CHECK_PAR_VALUE(CID_DEV_REG1, err, holding_registers[CID_DEV_REG1], TEST_REG_VAL2);
 
-                err = test_common_read_modbus_parameter(mbm_handle, CID_DEV_REG2, &holding_registers[CID_DEV_REG2]);
-                CHECK_PAR_VALUE(CID_DEV_REG2, err, holding_registers[CID_DEV_REG2], TEST_REG_VAL3);
+            err = test_common_read_modbus_parameter(mbm_handle, CID_DEV_REG2, &holding_registers[CID_DEV_REG2]);
+            CHECK_PAR_VALUE(CID_DEV_REG2, err, holding_registers[CID_DEV_REG2], TEST_REG_VAL3);
 
-                err = test_common_read_modbus_parameter(mbm_handle, CID_DEV_REG3, &holding_registers[CID_DEV_REG3]);
-                CHECK_PAR_VALUE(CID_DEV_REG3, err, holding_registers[CID_DEV_REG3], TEST_REG_VAL4);
-                req_type = RT_HOLDING_WR;
-                break;
+            err = test_common_read_modbus_parameter(mbm_handle, CID_DEV_REG3, &holding_registers[CID_DEV_REG3]);
+            CHECK_PAR_VALUE(CID_DEV_REG3, err, holding_registers[CID_DEV_REG3], TEST_REG_VAL4);
+            req_type = RT_HOLDING_WR;
+            break;
 
-            case RT_HOLDING_WR:
-                err = write_modbus_parameter(mbm_handle, CID_DEV_REG0, &holding_registers[CID_DEV_REG0]);
-                CHECK_PAR_VALUE(CID_DEV_REG0, err, holding_registers[CID_DEV_REG0], TEST_REG_VAL1);
+        case RT_HOLDING_WR:
+            err = write_modbus_parameter(mbm_handle, CID_DEV_REG0, &holding_registers[CID_DEV_REG0]);
+            CHECK_PAR_VALUE(CID_DEV_REG0, err, holding_registers[CID_DEV_REG0], TEST_REG_VAL1);
 
-                err = write_modbus_parameter(mbm_handle, CID_DEV_REG1, &holding_registers[CID_DEV_REG1]);
-                CHECK_PAR_VALUE(CID_DEV_REG1, err, holding_registers[CID_DEV_REG1], TEST_REG_VAL2);
+            err = write_modbus_parameter(mbm_handle, CID_DEV_REG1, &holding_registers[CID_DEV_REG1]);
+            CHECK_PAR_VALUE(CID_DEV_REG1, err, holding_registers[CID_DEV_REG1], TEST_REG_VAL2);
 
-                err = write_modbus_parameter(mbm_handle, CID_DEV_REG2, &holding_registers[CID_DEV_REG2]);
-                CHECK_PAR_VALUE(CID_DEV_REG2, err, holding_registers[CID_DEV_REG2], TEST_REG_VAL3);
+            err = write_modbus_parameter(mbm_handle, CID_DEV_REG2, &holding_registers[CID_DEV_REG2]);
+            CHECK_PAR_VALUE(CID_DEV_REG2, err, holding_registers[CID_DEV_REG2], TEST_REG_VAL3);
 
-                err = write_modbus_parameter(mbm_handle, CID_DEV_REG3, &holding_registers[CID_DEV_REG3]);
-                CHECK_PAR_VALUE(CID_DEV_REG3, err, holding_registers[CID_DEV_REG3], TEST_REG_VAL4);
-                req_type = RT_HOLDING_RD;
-                break;
+            err = write_modbus_parameter(mbm_handle, CID_DEV_REG3, &holding_registers[CID_DEV_REG3]);
+            CHECK_PAR_VALUE(CID_DEV_REG3, err, holding_registers[CID_DEV_REG3], TEST_REG_VAL4);
+            req_type = RT_HOLDING_RD;
+            break;
 
-            default:
-                break;
+        default:
+            break;
         }
         if (holding_registers[CID_DEV_REG_COUNT] >= TEST_TASK_CYCLE_COUNTER) {
             ESP_LOGI(TAG, "Stop master: %p.", mbm_handle);
@@ -495,16 +544,15 @@ static void test_slave_task(void *arg)
     mbs_controller_iface_t *pctrl_obj = ((mbs_controller_iface_t *)mbs_handle);
     mb_param_info_t reg_info;                    // keeps the Modbus registers access information
 
-    test_common_task_wait_start(TEST_TASK_START_TIMEOUT);
+    test_common_task_wait_start_and_stop(TEST_TASK_START_TIMEOUT);
 
-    while(1) {
+    while (1) {
         // Get parameter information from parameter queue
         esp_err_t err = mbc_slave_get_param_info(mbs_handle, &reg_info, TEST_PAR_INFO_GET_TOUT);
         const char *rw_str = (reg_info.type & TEST_READ_MASK) ? "READ" : "WRITE";
 
         // Filter events and process them accordingly
-        if ((err != ESP_ERR_TIMEOUT) && (reg_info.type & TEST_READ_WRITE_MASK))
-        {
+        if ((err != ESP_ERR_TIMEOUT) && (reg_info.type & TEST_READ_WRITE_MASK)) {
             // Get parameter information from parameter queue
             ESP_LOGI("SLAVE", "OBJ %p, %s (%" PRIu32 " us), SL: %u, REG:%u, TYPE:%u, INST_ADDR:0x%" PRIx32 "(0x%" PRIx16 "), SIZE:%u",
                      (void *)pctrl_obj->mb_base->descr.parent,
@@ -524,6 +572,7 @@ static void test_slave_task(void *arg)
             break;
         }
     }
+
     ESP_LOGI(TAG, "Destroy slave, inst: %p.", mbs_handle);
     TEST_ESP_OK(mbc_slave_delete(mbs_handle));
     ESP_LOGD(TAG, "Notify task done, inst: %p.", xTaskGetCurrentTaskHandle());
@@ -555,14 +604,15 @@ void test_common_slave_setup_start(void *mbs_handle)
     reg_area.size = coil_registers_counter;
     TEST_ESP_OK(mbc_slave_set_descriptor(mbs_handle, reg_area));
     TEST_ESP_OK(mbc_slave_start(mbs_handle));
+
 }
 
 #if (CONFIG_FMB_COMM_MODE_RTU_EN || CONFIG_FMB_COMM_MODE_ASCII_EN)
 
 TaskHandle_t test_common_master_serial_create(mb_communication_info_t *pconfig,
-                                                uint32_t priority, 
-                                                const mb_parameter_descriptor_t *descr,
-                                                uint16_t descr_size)
+        uint32_t priority,
+        const mb_parameter_descriptor_t *descr,
+        uint16_t descr_size)
 {
     if (!pconfig || !descr) {
         ESP_LOGI(TAG, "invalid master configuration.");
@@ -583,12 +633,12 @@ TaskHandle_t test_common_master_serial_create(mb_communication_info_t *pconfig,
     if (priority) {
         priority = TEST_TASK_PRIO_MASTER;
     }
-    
-    char* port_name = pbase->mb_base->descr.parent_name;
+
+    char *port_name = pbase->mb_base->descr.parent_name;
     TEST_ASSERT_TRUE(xTaskCreatePinnedToCore(test_master_task, port_name,
-                                             TEST_TASK_STACK_SIZE,
-                                             mbm_handle, priority,
-                                             &master_task_handle, MB_PORT_TASK_AFFINITY));
+                     TEST_TASK_STACK_SIZE,
+                     mbm_handle, priority,
+                     &master_task_handle, MB_PORT_TASK_AFFINITY));
     test_task_add_entry(master_task_handle, mbm_handle);
     return master_task_handle;
 }
@@ -613,9 +663,9 @@ TaskHandle_t test_common_slave_serial_create(mb_communication_info_t *pconfig, u
     }
 
     TEST_ASSERT_TRUE(xTaskCreatePinnedToCore(test_slave_task, pbase->mb_base->descr.parent_name,
-                                             TEST_TASK_STACK_SIZE,
-                                             mbs_handle, priority,
-                                             &slave_task_handle, MB_PORT_TASK_AFFINITY));
+                     TEST_TASK_STACK_SIZE,
+                     mbs_handle, priority,
+                     &slave_task_handle, MB_PORT_TASK_AFFINITY));
     test_task_add_entry(slave_task_handle, mbs_handle);
     return slave_task_handle;
 }
@@ -638,19 +688,19 @@ TaskHandle_t test_common_master_tcp_create(mb_communication_info_t *pconfig, uin
 
     TEST_ESP_OK(mbc_master_set_descriptor(mbm_handle, descr, descr_size));
     ESP_LOGI(TAG, "%p, modbus master stack is initialized", mbm_handle);
-    
+
     TEST_ESP_OK(mbc_master_start(mbm_handle));
     ESP_LOGI(TAG, "%p, modbus master start...", mbm_handle) ;
-    
+
     if (priority) {
         priority = TEST_TASK_PRIO_MASTER;
     }
 
     char *port_name = pbase->mb_base->descr.parent_name;
     TEST_ASSERT_TRUE(xTaskCreatePinnedToCore(test_master_task, port_name,
-                                             TEST_TASK_STACK_SIZE,
-                                             mbm_handle, priority,
-                                             &master_task_handle, MB_PORT_TASK_AFFINITY));
+                     TEST_TASK_STACK_SIZE,
+                     mbm_handle, priority,
+                     &master_task_handle, MB_PORT_TASK_AFFINITY));
 
     test_task_add_entry(master_task_handle, mbm_handle);
     return master_task_handle;
@@ -675,9 +725,9 @@ TaskHandle_t test_common_slave_tcp_create(mb_communication_info_t *pconfig, uint
     }
 
     TEST_ASSERT_TRUE(xTaskCreatePinnedToCore(test_slave_task, pbase->mb_base->descr.parent_name,
-                                             TEST_TASK_STACK_SIZE,
-                                             mbs_handle, priority,
-                                             &slave_task_handle, MB_PORT_TASK_AFFINITY));
+                     TEST_TASK_STACK_SIZE,
+                     mbs_handle, priority,
+                     &slave_task_handle, MB_PORT_TASK_AFFINITY));
     test_task_add_entry(slave_task_handle, mbs_handle);
     return slave_task_handle;
 }

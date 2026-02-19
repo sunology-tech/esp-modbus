@@ -28,7 +28,7 @@ extern "C" {
  * ChTimeValue = Ticks_per_1s / (Baudrate / 11)
  *             = 11 * Ticks_per_1s / Baudrate
  *             = 220000 / Baudrate
- * The reload for t3.5 is 1.5 times this value and similary
+ * The reload for t3.5 is 1.5 times this value and similarly
  * for t3.5.
  */
 #define MB_RTU_GET_T35_VAL(baudrate) (__extension__(            \
@@ -46,8 +46,7 @@ extern "C" {
 #define MB_RTU_SER_PDU_ADDR_OFF     0                       /*!< Offset of slave address in Ser-PDU. */
 #define MB_RTU_SER_PDU_PDU_OFF      1                       /*!< Offset of Modbus-PDU in Ser-PDU. */
 
-typedef enum
-{
+typedef enum {
     MB_RTU_STATE_INIT,              /*!< Receiver is in initial state. */
     MB_RTU_STATE_ACTIVE,            /*!< Receiver is in active state. */
     MB_RTU_STATE_ERROR              /*!< If the frame is invalid. */

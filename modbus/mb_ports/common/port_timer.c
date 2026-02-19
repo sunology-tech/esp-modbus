@@ -9,12 +9,6 @@
 #include "esp_idf_version.h"
 #include "esp_attr.h"
 
-#if __has_include("driver/gptimer.h")
-#include "driver/gptimer.h"
-#else
-#include "driver/timer.h"
-#endif
-
 #include "esp_timer.h"
 #include "esp_log.h"
 
@@ -24,8 +18,7 @@
 #include "mb_common.h"
 
 /* ----------------------- Defines ----------------------------------------*/
-struct mb_port_timer_t
-{
+struct mb_port_timer_t {
     //spinlock_t spin_lock;
     esp_timer_handle_t timer_handle;
     uint16_t t35_ticks;
@@ -53,7 +46,7 @@ static void IRAM_ATTR timer_alarm_cb(void *param)
 mb_err_enum_t mb_port_timer_create(mb_port_base_t *inst, uint16_t t35_timer_ticks)
 {
     MB_RETURN_ON_FALSE((t35_timer_ticks > 0), MB_EILLSTATE, TAG,
-                       "modbus timeout discreet is incorrect.");
+                       "modbus timeout discrete is incorrect.");
     // MB_RETURN_ON_FALSE((inst && !inst->timer_obj), MB_EILLSTATE, TAG,
     //                    "modbus timer is already created.");
     mb_err_enum_t ret = MB_EILLSTATE;
@@ -83,8 +76,7 @@ mb_err_enum_t mb_port_timer_create(mb_port_base_t *inst, uint16_t t35_timer_tick
     return MB_ENOERR;
 
 error:
-    if (inst && inst->timer_obj && inst->timer_obj->timer_handle)
-    {
+    if (inst && inst->timer_obj && inst->timer_obj->timer_handle) {
         esp_timer_delete(inst->timer_obj->timer_handle);
     }
     free(inst->timer_obj);
@@ -95,10 +87,8 @@ error:
 void mb_port_timer_delete(mb_port_base_t *inst)
 {
     // Delete active timer
-    if (inst->timer_obj)
-    {
-        if (inst->timer_obj->timer_handle)
-        {
+    if (inst->timer_obj) {
+        if (inst->timer_obj->timer_handle) {
             esp_timer_stop(inst->timer_obj->timer_handle);
             esp_timer_delete(inst->timer_obj->timer_handle);
         }
@@ -111,12 +101,11 @@ void mb_port_timer_us(mb_port_base_t *inst, uint64_t timeout_us)
 {
     MB_RETURN_ON_FALSE((inst && inst->timer_obj->timer_handle), ;, TAG, "timer is not initialized.");
     MB_RETURN_ON_FALSE((timeout_us > 0), ;, TAG,
-                        "%s, incorrect tick value for timer = (%" PRId64 ").", inst->descr.parent_name, timeout_us);
+                       "%s, incorrect tick value for timer = (%" PRId64 ").", inst->descr.parent_name, timeout_us);
     esp_timer_stop(inst->timer_obj->timer_handle);
     esp_timer_start_once(inst->timer_obj->timer_handle, timeout_us);
     atomic_store(&(inst->timer_obj->timer_state), false);
 }
-
 
 inline void mb_port_set_cur_timer_mode(mb_port_base_t *inst, mb_timer_mode_enum_t tmr_mode)
 {
@@ -141,7 +130,7 @@ void mb_port_timer_enable(mb_port_base_t *inst)
 
 void mb_port_timer_convert_delay_enable(mb_port_base_t *inst)
 {
-    // Covert time in milliseconds into ticks
+    // Convert time in milliseconds into ticks
     uint64_t tout_us = (MB_MASTER_DELAY_MS_CONVERT * 1000);
 
     // Set current timer mode
@@ -155,8 +144,8 @@ void mb_port_timer_respond_timeout_enable(mb_port_base_t *inst)
     uint64_t tout_us = (inst->timer_obj->response_time_ms * 1000);
 
     mb_port_set_cur_timer_mode(inst, MB_TMODE_RESPOND_TIMEOUT);
-    ESP_LOGD(TAG, "%s, respond enable timeout (%u).", 
-                inst->descr.parent_name, (unsigned)mb_port_timer_get_response_time_ms(inst));
+    ESP_LOGD(TAG, "%s, respond enable timeout (%u).",
+             inst->descr.parent_name, (unsigned)mb_port_timer_get_response_time_ms(inst));
     mb_port_timer_us(inst, tout_us);
 }
 
@@ -170,10 +159,8 @@ void mb_port_timer_disable(mb_port_base_t *inst)
 {
     // Disable timer alarm
     esp_err_t err = esp_timer_stop(inst->timer_obj->timer_handle);
-    if (err != ESP_OK)
-    {
-        if (!esp_timer_is_active(inst->timer_obj->timer_handle))
-        {
+    if (err != ESP_OK) {
+        if (!esp_timer_is_active(inst->timer_obj->timer_handle)) {
             ESP_EARLY_LOGD(TAG, "%s, timer stop, returns %d.", inst->descr.parent_name, (int)err);
         }
     }

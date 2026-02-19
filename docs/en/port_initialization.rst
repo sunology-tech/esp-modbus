@@ -74,6 +74,8 @@ The configuration structure is used to recognize the type of object being initia
 An example of initialization for Modbus TCP master is below. The Modbus master TCP requires additional definition of IP address table where number of addresses should be equal to number of unique slave addresses in master Modbus Data Dictionary. The Unit Identifier defined in the table below corresponds to UID (slave short address field) in the Data Dictionary.
 The format of slave definition following the notation `UID;slave_host_ip_or_dns_name;port_number` and allows some variations as described in the example below.
 
+.. note:: The Modbus library supports integration with the MDNS component in order to resolve the node names within the Modbus segment. This behavior is configurable and can be enabled by the ``CONFIG_FMB_MDNS_INTEGRATION_ENABLE`` kconfig value, which is enabled by default. This key allows you to disable MDNS integration and use IP addresses in the master configuration or use the MDNS resolution on the user project level. If the MDNS is disabled but the MDNS names are used in the configuration, the stack logs an error: ``E (20127) mb_port.tcp.master: 0x3ffc9ff0, slave: 2, IP:mb_slave_tcp_01, mdns service is not supported.``
+
 .. code:: c
 
     // This is public pointer for the module and used by master
@@ -99,7 +101,7 @@ The format of slave definition following the notation `UID;slave_host_ip_or_dns_
         .tcp_opts.uid = 0,                                          // the UID unused for master
         .tcp_opts.start_disconnected = false,                       // false - manage connections to all slaves before start
         .tcp_opts.response_tout_ms = 2000,                          // slave response time in milliseconds for master, 0 - use default konfig
-        .tcp_opts.ip_netif_ptr = (void*)get_example_netif(),        // the pointer to netif inteface
+        .tcp_opts.ip_netif_ptr = (void*)get_example_netif(),        // the pointer to netif interface
     };
     esp_err_t err = mbc_master_create_tcp(pcomm_info, &master_handle);
     if (master_handler == NULL || err != ESP_OK) {
@@ -110,8 +112,6 @@ The format of slave definition following the notation `UID;slave_host_ip_or_dns_
 
 The slave IP addresses of the slaves can be resolved automatically by the stack using mDNS service as described in the example. In this case each slave has to use the mDNS service support and define its host name appropriately.
 Refer to :ref:`example TCP master <example_mb_tcp_master>`, :ref:`example TCP slave <example_mb_tcp_slave>` for more information.
-
-.. note:: The Modbus Master TCP functionality is under testing and competition status will be announced later over official channels.
 
 .. _modbus_api_slave_setup_communication_options:
 
@@ -159,7 +159,7 @@ This example code to initialize Modbus TCP slave:
         .tcp_opts.mode = MB_TCP,                            // mode of communication for slave
         .tcp_opts.addr_type = MB_IPV4,                      // type of addressing being used
         .tcp_opts.ip_addr_table = NULL,                     // Bind to any address
-        .tcp_opts.ip_netif_ptr = (void*)get_example_netif(),// the pointer to netif inteface
+        .tcp_opts.ip_netif_ptr = (void*)get_example_netif(),// the pointer to netif interface
         .tcp_opts.uid = MB_SLAVE_ADDR                       // Modbus slave Unit Identifier
     };
     esp_err_t err = mbc_slave_create_tcp(&tcp_slave_config, &slave_handle);
@@ -168,5 +168,3 @@ This example code to initialize Modbus TCP slave:
     }
 
 .. note:: Refer to `esp_netif component <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/network/esp_netif.html>`__ for more information about network interface initialization.
-
-.. note:: The Modbus Slave TCP functionality is under testing and the competition status will be announced later over official channels.
